@@ -34,7 +34,7 @@ class WorkoutExerciseSchema(Schema):
             exercise_id=data['exercise_id']
         ).first()
         if existing:
-            raise ValidationError('This exercise is already added to this workout')
+            raise ValidationError({'error': 'This exercise is already added to this workout'})
         
         return WorkoutExercise(**data)
 

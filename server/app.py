@@ -178,7 +178,10 @@ def add_exercise_to_workout(workout_id, exercise_id):
         return make_response(jsonify({'error': str(e)}), 400)
     except Exception as e:
         db.session.rollback()
-        return make_response(jsonify({'error': str(e)}), 500)
+        error_msg = str(e)
+        if 'already added' in error_msg.lower():
+            return make_response(jsonify({'error': 'This exercise is already added to this workout'}), 400)
+        return make_response(jsonify({'error': error_msg}), 500)
 
 
 if __name__ == '__main__':
