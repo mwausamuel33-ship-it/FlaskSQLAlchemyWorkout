@@ -1,4 +1,4 @@
-# Workout Tracker
+# readme
 
 This is a simple Flask app for tracking workouts. It has workouts and exercises.
 
