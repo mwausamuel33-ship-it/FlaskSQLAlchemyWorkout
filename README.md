@@ -1,160 +1,173 @@
-# Workout Tracking API
+# Workout Tracker API
 
-A Flask-based backend API for tracking workouts and exercises. This application allows personal trainers to create workouts, manage exercises, and track exercise details including sets, reps, and duration.
+This is my Flask + SQLAlchemy project for tracking workouts and exercises. I built this as part of my backend development learning. It's a REST API that lets you create workouts, add exercises to them, and track reps/sets/duration.
 
-## Project Description
+Took me a while to get the relationships working but I think I got it 😅
 
-The Workout Tracking API is a RESTful backend service that manages:
-- **Workouts**: Collections of exercises performed on a specific date
-- **Exercises**: Reusable exercise templates with categories and equipment requirements
-- **Workout Exercises**: Association between workouts and exercises with specific set/rep/duration data
+---
 
-The API includes comprehensive validation at the table, model, and schema levels to ensure data integrity and consistency.
+## How to set it up
 
-## Installation
+Make sure you have pipenv installed first. Then run:
 
-### Prerequisites
-- Python 3.11+
-- Pipenv
-
-### Setup
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd FlaskSQLAlchemyWorkout
-```
-
-2. Install dependencies:
 ```bash
 pipenv install
-```
-
-3. Activate the virtual environment:
-```bash
 pipenv shell
 ```
 
-4. Initialize the database:
-```bash
-flask db init
-flask db migrate -m "Initial migration"
-flask db upgrade head
-```
+Then go into the server folder and run the migrations and seed the database:
 
-5. Seed the database with sample data:
 ```bash
+cd server
+flask db upgrade
 python seed.py
 ```
 
-## Running the Application
+> Note: if flask db upgrade gives you an error, try deleting the app.db file and migrations/versions folder and running `flask db init` and `flask db migrate` first. That fixed it for me.
 
-Start the Flask development server:
+---
+
+## How to run it
+
 ```bash
-flask run
+flask run --port 5555
 ```
 
-The API will be available at `http://localhost:5555`
+or just run app.py directly:
 
-## API Endpoints
+```bash
+python app.py
+```
+
+The server will start on `http://localhost:5555`
+
+---
+
+## Endpoints
+
+Here are all the routes. Full CRUD operations are now supported!
 
 ### Workouts
 
-- **GET /workouts**
-  - Lists all workouts
-  - Returns: Array of workout objects with associated exercises
+| Method | Route | What it does |
+|--------|-------|--------------|
+| GET | `/workouts` | get all workouts |
+| GET | `/workouts/<id>` | get one workout by its id |
+| POST | `/workouts` | create a new workout |
+| PATCH | `/workouts/<id>` | update a workout (partial update) |
+| DELETE | `/workouts/<id>` | delete a workout |
 
-- **GET /workouts/<id>**
-  - Shows a single workout with its associated exercises
-  - Returns: Workout object with exercise details (reps/sets/duration)
+**POST/PATCH body example:**
+```json
+{
+  "date": "2024-04-10",
+  "duration_minutes": 45,
+  "notes": "leg day"
+}
+```
 
-- **POST /workouts**
-  - Creates a new workout
-  - Request body: `{ "date": "YYYY-MM-DD", "duration_minutes": int, "notes": string }`
-  - Returns: Created workout object
-
-- **DELETE /workouts/<id>**
-  - Deletes a workout and associated WorkoutExercises
-  - Returns: Success message
+> Note: For PATCH, you only need to include the fields you want to update
 
 ### Exercises
 
-- **GET /exercises**
-  - Lists all exercises
-  - Returns: Array of exercise objects
+| Method | Route | What it does |
+|--------|-------|--------------|
+| GET | `/exercises` | get all exercises |
+| GET | `/exercises/<id>` | get one exercise by id |
+| POST | `/exercises` | create a new exercise |
+| PATCH | `/exercises/<id>` | update an exercise (partial update) |
+| DELETE | `/exercises/<id>` | delete an exercise |
 
-- **GET /exercises/<id>**
-  - Shows a single exercise with associated workouts
-  - Returns: Exercise object with workouts
+**POST/PATCH body example:**
+```json
+{
+  "name": "Bench Press",
+  "category": "strength",
+  "equipment_needed": true
+}
+```
 
-- **POST /exercises**
-  - Creates a new exercise
-  - Request body: `{ "name": string, "category": string, "equipment_needed": boolean }`
-  - Returns: Created exercise object
+> The category field only accepts: `strength`, `cardio`, `flexibility`, or `balance` — it'll give you a 400 error if you use something else (learned that the hard way)
+> 
+> For PATCH, you only need to include the fields you want to update
 
-- **DELETE /exercises/<id>**
-  - Deletes an exercise and associated WorkoutExercises
-  - Returns: Success message
+### Workout Exercises (the join table)
 
-### Workout Exercises
+This one was the hardest part. It links a workout to an exercise and stores reps/sets/duration.
 
-- **POST /workouts/<workout_id>/exercises/<exercise_id>/workout_exercises**
-  - Adds an exercise to a workout with specific set/rep/duration data
-  - Request body: `{ "reps": int, "sets": int, "duration_seconds": int }`
-  - Returns: Created WorkoutExercise object
+| Method | Route | What it does |
+|--------|-------|--------------|
+| GET | `/workouts/<workout_id>/exercises` | get all exercises in a workout |
+| GET | `/workouts/<workout_id>/exercises/<exercise_id>/workout_exercises` | get details of a specific exercise in a workout |
+| POST | `/workouts/<workout_id>/exercises/<exercise_id>/workout_exercises` | add an exercise to a workout |
+| PATCH | `/workouts/<workout_id>/exercises/<exercise_id>/workout_exercises` | update exercise details in a workout (reps/sets/duration) |
 
-## Testing
+**POST/PATCH body example:**
+```json
+{
+  "reps": 12,
+  "sets": 3
+}
+```
 
-Test the API using curl, Postman, or Flask shell:
+> For PATCH, you only need to include the fields you want to update. You can update reps, sets, and duration_seconds
+
+---
+
+## Quick test with curl
 
 ```bash
-flask shell
+# get all exercises
+curl http://localhost:5555/exercises
+
+# create an exercise
+curl -X POST http://localhost:5555/exercises \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Bench Press", "category": "strength", "equipment_needed": true}'
+
+# get all workouts
+curl http://localhost:5555/workouts
 ```
 
-Inside the Flask shell, test relationships and validations:
-```python
-from models import *
+---
 
-# View all workouts
-Workout.query.all()
+## Models
 
-# Create and test validations
-exercise = Exercise(name="", category="cardio", equipment_needed=False)
-db.session.add(exercise)
-db.session.commit()  # Will raise validation error
-```
+I have 3 models:
 
-## Project Structure
+- **Exercise** - stores exercise name, category, and whether equipment is needed
+- **Workout** - stores date, duration, and notes
+- **WorkoutExercise** - the join table between workouts and exercises, also stores reps/sets/duration_seconds
 
-```
-server/
-├── app.py           # Flask application and route definitions
-├── models.py        # SQLAlchemy models with validations
-├── schemas.py       # Marshmallow schemas for serialization
-└── seed.py          # Database seeding script
-```
+The relationship is many-to-many: a workout can have many exercises and an exercise can be in many workouts. WorkoutExercise is the association table that sits in the middle.
 
-## Validations
+---
 
-### Table Constraints
-- Workout: `date` is required and unique per day
-- Exercise: `name` is required and unique
-- WorkoutExercise: `workout_id` and `exercise_id` are required with foreign key constraints
+## Tech used
 
-### Model Validations
-- Workout: duration_minutes must be positive
-- Exercise: name cannot be empty, category must be from allowed values
-- WorkoutExercise: reps, sets, and duration_seconds cannot be negative
+- Python 3
+- Flask
+- Flask-SQLAlchemy
+- Flask-Migrate (for database migrations)
+- Marshmallow (for serialization/validation — this was new to me)
+- SQLite (for the database, just a local file)
 
-### Schema Validations
-- All required fields must be present
-- Data types are validated and coerced
-- Numeric fields must be positive integers
+---
 
-## Technologies Used
+## Features Implemented
 
-- **Flask 2.2.2**: Web framework
-- **SQLAlchemy 3.0.3**: ORM
-- **Flask-Migrate 3.1.0**: Database migrations
-- **Marshmallow 3.20.1**: Serialization/deserialization
-- **SQLite**: Database
+- [x] Create (POST) endpoints for workouts, exercises, and workout-exercise links
+- [x] Read (GET) endpoints for all resources
+- [x] Update (PATCH) endpoints for workouts, exercises, and workout-exercise links
+- [x] Delete (DELETE) endpoints for workouts and exercises
+- [x] Comprehensive error handling and detailed error messages
+- [x] Input validation using Marshmallow schemas
+- [x] Database constraints for data integrity
+
+## Future Features
+
+- [ ] Authentication so different users can track their own workouts
+- [ ] Frontend dashboard for visualizing workouts and progress
+- [ ] Ability to search and filter workouts/exercises
+- [ ] Statistics and analytics (total volume, frequency, etc.)
+- [ ] User profiles and social features

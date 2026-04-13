@@ -1,101 +1,66 @@
-from marshmallow import Schema, fields, validate, validates, ValidationError, post_load
+# schemas.py - marshmallow schemas for validation + serialization
+#
+# quick note on load vs dump (i kept mixing these up):
+#   load()  = JSON dict -> python object  (incoming request data)
+#   dump()  = python object -> JSON dict  (outgoing response data)
+
+from marshmallow import Schema, fields, validate, validates, ValidationError
 from models import db, Workout, Exercise, WorkoutExercise
-from datetime import datetime
 
 
+# defined first because the other schemas reference it with fields.Nested()
 class WorkoutExerciseSchema(Schema):
-    """Schema for WorkoutExercise serialization and deserialization."""
-    id = fields.Int(dump_only=True)
+    id = fields.Int(dump_only=True)  # assigned by db, not needed in input
     workout_id = fields.Int(required=True)
     exercise_id = fields.Int(required=True)
-    reps = fields.Int(allow_none=True, validate=validate.Range(min=1, error='Reps must be a positive integer'))
-    sets = fields.Int(allow_none=True, validate=validate.Range(min=1, error='Sets must be a positive integer'))
-    duration_seconds = fields.Int(allow_none=True, validate=validate.Range(min=1, error='Duration seconds must be a positive integer'))
+    reps = fields.Int(allow_none=True)
+    sets = fields.Int(allow_none=True)
+    duration_seconds = fields.Int(allow_none=True)
 
-    # Schema validations
     @validates('workout_id')
-    def validate_workout_exists(self, value):
-        """Validate that the workout exists."""
-        if value and not Workout.query.get(value):
-            raise ValidationError('Workout does not exist')
+    def validate_workout_id(self, value):
+        found = Workout.query.get(value)
+        if found == None:
+            raise ValidationError('No workout found with that id')
 
     @validates('exercise_id')
-    def validate_exercise_exists(self, value):
-        """Validate that the exercise exists."""
-        if value and not Exercise.query.get(value):
-            raise ValidationError('Exercise does not exist')
-
-    @post_load
-    def create_object(self, data, **kwargs):
-        """Create WorkoutExercise object from validated data."""
-        # Check for duplicate exercise in workout
-        existing = WorkoutExercise.query.filter_by(
-            workout_id=data['workout_id'],
-            exercise_id=data['exercise_id']
-        ).first()
-        if existing:
-            raise ValidationError({'error': 'This exercise is already added to this workout'})
-        
-        return WorkoutExercise(**data)
+    def validate_exercise_id(self, value):
+        found = Exercise.query.get(value)
+        if found == None:
+            raise ValidationError('No exercise found with that id')
 
     class Meta:
         model = WorkoutExercise
 
 
 class ExerciseSchema(Schema):
-    """Schema for Exercise serialization and deserialization."""
     id = fields.Int(dump_only=True)
-    name = fields.Str(required=True, validate=validate.Length(min=1, error='Name cannot be empty'))
+    name = fields.Str(required=True)
+    # validate.OneOf checks against a list of allowed values
     category = fields.Str(
         required=True,
-        validate=validate.OneOf(
-            ['strength', 'cardio', 'flexibility', 'balance'],
-            error='Category must be one of: strength, cardio, flexibility, balance'
-        )
+        validate=validate.OneOf(['strength', 'cardio', 'flexibility', 'balance'])
     )
-    equipment_needed = fields.Bool(missing=False)
-    workout_exercises = fields.Nested('WorkoutExerciseSchema', many=True, dump_only=True)
-
-    # Schema validations
-    @validates('name')
-    def validate_unique_name(self, value):
-        """Validate that exercise name is unique."""
-        if value:
-            existing = Exercise.query.filter_by(name=value.strip()).first()
-            if existing:
-                raise ValidationError('An exercise with this name already exists')
-
-    @post_load
-    def create_object(self, data, **kwargs):
-        """Create Exercise object from validated data."""
-        return Exercise(**data)
+    equipment_needed = fields.Bool(missing=False)  # defaults to False if not sent
+    workout_exercises = fields.Nested(
+        'WorkoutExerciseSchema', many=True, dump_only=True
+    )
 
     class Meta:
         model = Exercise
 
 
 class WorkoutSchema(Schema):
-    """Schema for Workout serialization and deserialization."""
     id = fields.Int(dump_only=True)
-    date = fields.Date(required=True)
+    date = fields.Date(required=True)  # marshmallow converts string to date object
     duration_minutes = fields.Int(
         required=True,
-        validate=validate.Range(min=1, error='Duration must be a positive integer')
+        validate=validate.Range(min=1)
     )
     notes = fields.Str(allow_none=True)
-    workout_exercises = fields.Nested('WorkoutExerciseSchema', many=True, dump_only=True)
-
-    # Schema validations
-    @validates('date')
-    def validate_date_not_future(self, value):
-        """Validate that date is not in the future."""
-        if value and value > datetime.now().date():
-            raise ValidationError('Workout date cannot be in the future')
-
-    @post_load
-    def create_object(self, data, **kwargs):
-        """Create Workout object from validated data."""
-        return Workout(**data)
+    workout_exercises = fields.Nested(
+        'WorkoutExerciseSchema', many=True, dump_only=True
+    )
 
     class Meta:
         model = Workout
