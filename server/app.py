@@ -1,6 +1,3 @@
-# app.py - all routes live here
-# TODO: maybe use blueprints later if this gets too long
-
 from flask import Flask, request
 from flask_migrate import Migrate
 from models import *
@@ -8,22 +5,17 @@ from schemas import WorkoutSchema, ExerciseSchema, WorkoutExerciseSchema
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # stops a warning
-
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 migrate = Migrate(app, db)
 db.init_app(app)
 
-# schema instances (many=True is for lists)
 workout_schema = WorkoutSchema()
 workouts_schema = WorkoutSchema(many=True)
 exercise_schema = ExerciseSchema()
 exercises_schema = ExerciseSchema(many=True)
 workout_exercise_schema = WorkoutExerciseSchema()
 
-
-# -- ROOT ROUTE --
-
-@app.route('/', methods=['GET'])
+@app.route('/')
 def home():
     return {
         'message': 'Workout Tracker API',
@@ -52,271 +44,118 @@ def home():
         }
     }, 200
 
-
-# -- WORKOUT ROUTES --
-
 @app.route('/workouts', methods=['GET'])
 def get_workouts():
-    try:
-        all_workouts = Workout.query.all()
-        return workouts_schema.dump(all_workouts), 200
-    except Exception as e:
-        return {'error': f'Failed to fetch workouts: {str(e)}'}, 500
-
+    return workouts_schema.dump(Workout.query.all()), 200
 
 @app.route('/workouts/<int:id>', methods=['GET'])
 def get_workout(id):
-    workout = Workout.query.get(id)
-    if workout == None:
-        return {'error': f'Workout not found with id {id}'}, 404
-    return workout_schema.dump(workout), 200
-
+    w = Workout.query.get(id)
+    if not w: return {'error': 'Not found'}, 404
+    return workout_schema.dump(w), 200
 
 @app.route('/workouts', methods=['POST'])
 def create_workout():
     data = request.get_json()
-    if data == None:
-        return {'error': 'No data provided. Expected JSON body with date, duration_minutes, and optional notes'}, 400
-
-    errors = workout_schema.validate(data)
-    if len(errors) > 0:
-        return {'errors': errors}, 400
-
-    try:
-        loaded_data = workout_schema.load(data)
-        new_workout = Workout(**loaded_data)
-        db.session.add(new_workout)
-        db.session.commit()
-        return workout_schema.dump(new_workout), 201
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to create workout: {str(e)}'}, 400
-
+    if not data: return {'error': 'No data'}, 400
+    new_w = Workout(**workout_schema.load(data))
+    db.session.add(new_w)
+    db.session.commit()
+    return workout_schema.dump(new_w), 201
 
 @app.route('/workouts/<int:id>', methods=['PATCH'])
 def update_workout(id):
-    workout = Workout.query.get(id)
-    if workout == None:
-        return {'error': f'Workout not found with id {id}'}, 404
-    
+    w = Workout.query.get(id)
+    if not w: return {'error': 'Not found'}, 404
     data = request.get_json()
-    if data == None:
-        return {'error': 'No data provided'}, 400
-    
-    # validate only the fields being updated
-    errors = workout_schema.validate(data, partial=True)
-    if len(errors) > 0:
-        return {'errors': errors}, 400
-    
-    try:
-        # load with partial=True to allow partial updates
-        updated_data = workout_schema.load(data, partial=True)
-        for key, value in updated_data.items():
-            setattr(workout, key, value)
-        db.session.commit()
-        return workout_schema.dump(workout), 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to update workout: {str(e)}'}, 400
-
+    if not data: return {'error': 'No data'}, 400
+    for k, v in workout_schema.load(data, partial=True).items():
+        setattr(w, k, v)
+    db.session.commit()
+    return workout_schema.dump(w), 200
 
 @app.route('/workouts/<int:id>', methods=['DELETE'])
 def delete_workout(id):
-    workout = Workout.query.get(id)
-    if workout == None:
-        return {'error': f'Workout not found with id {id}'}, 404
-    try:
-        db.session.delete(workout)
-        db.session.commit()
-        return {'message': f'Workout {id} deleted successfully'}, 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to delete workout: {str(e)}'}, 400
-
-
-# -- EXERCISE ROUTES --
+    w = Workout.query.get(id)
+    if not w: return {'error': 'Not found'}, 404
+    db.session.delete(w)
+    db.session.commit()
+    return {'message': 'Deleted'}, 200
 
 @app.route('/exercises', methods=['GET'])
 def get_exercises():
-    try:
-        all_exercises = Exercise.query.all()
-        return exercises_schema.dump(all_exercises), 200
-    except Exception as e:
-        return {'error': f'Failed to fetch exercises: {str(e)}'}, 500
-
+    return exercises_schema.dump(Exercise.query.all()), 200
 
 @app.route('/exercises/<int:id>', methods=['GET'])
 def get_exercise(id):
-    exercise = Exercise.query.get(id)
-    if exercise == None:
-        return {'error': f'Exercise not found with id {id}'}, 404
-    return exercise_schema.dump(exercise), 200
-
+    e = Exercise.query.get(id)
+    if not e: return {'error': 'Not found'}, 404
+    return exercise_schema.dump(e), 200
 
 @app.route('/exercises', methods=['POST'])
 def create_exercise():
     data = request.get_json()
-    if data == None:
-        return {'error': 'No data provided. Expected JSON body with name, category, and optional equipment_needed'}, 400
-
-    errors = exercise_schema.validate(data)
-    if len(errors) > 0:
-        return {'errors': errors}, 400
-
-    try:
-        loaded_data = exercise_schema.load(data)
-        new_exercise = Exercise(**loaded_data)
-        db.session.add(new_exercise)
-        db.session.commit()
-        return exercise_schema.dump(new_exercise), 201
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to create exercise: {str(e)}'}, 400
-
+    if not data: return {'error': 'No data'}, 400
+    new_e = Exercise(**exercise_schema.load(data))
+    db.session.add(new_e)
+    db.session.commit()
+    return exercise_schema.dump(new_e), 201
 
 @app.route('/exercises/<int:id>', methods=['PATCH'])
 def update_exercise(id):
-    exercise = Exercise.query.get(id)
-    if exercise == None:
-        return {'error': f'Exercise not found with id {id}'}, 404
-    
+    e = Exercise.query.get(id)
+    if not e: return {'error': 'Not found'}, 404
     data = request.get_json()
-    if data == None:
-        return {'error': 'No data provided'}, 400
-    
-    # validate only the fields being updated
-    errors = exercise_schema.validate(data, partial=True)
-    if len(errors) > 0:
-        return {'errors': errors}, 400
-    
-    try:
-        # load with partial=True to allow partial updates
-        updated_data = exercise_schema.load(data, partial=True)
-        for key, value in updated_data.items():
-            setattr(exercise, key, value)
-        db.session.commit()
-        return exercise_schema.dump(exercise), 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to update exercise: {str(e)}'}, 400
-
+    if not data: return {'error': 'No data'}, 400
+    for k, v in exercise_schema.load(data, partial=True).items():
+        setattr(e, k, v)
+    db.session.commit()
+    return exercise_schema.dump(e), 200
 
 @app.route('/exercises/<int:id>', methods=['DELETE'])
 def delete_exercise(id):
-    exercise = Exercise.query.get(id)
-    if exercise == None:
-        return {'error': f'Exercise not found with id {id}'}, 404
-    try:
-        db.session.delete(exercise)
-        db.session.commit()
-        return {'message': f'Exercise {id} deleted successfully'}, 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to delete exercise: {str(e)}'}, 400
-
-
-# -- WORKOUT EXERCISE ROUTES --
-# adds an exercise to a workout (creates a row in the join table)
+    e = Exercise.query.get(id)
+    if not e: return {'error': 'Not found'}, 404
+    db.session.delete(e)
+    db.session.commit()
+    return {'message': 'Deleted'}, 200
 
 @app.route('/workouts/<int:workout_id>/exercises', methods=['GET'])
 def get_workout_exercises(workout_id):
-    workout = Workout.query.get(workout_id)
-    if workout == None:
-        return {'error': f'Workout not found with id {workout_id}'}, 404
-    
-    try:
-        workout_exercises = WorkoutExercise.query.filter_by(workout_id=workout_id).all()
-        return [workout_exercise_schema.dump(we) for we in workout_exercises], 200
-    except Exception as e:
-        return {'error': f'Failed to fetch workout exercises: {str(e)}'}, 500
+    w = Workout.query.get(workout_id)
+    if not w: return {'error': 'Workout not found'}, 404
+    wes = WorkoutExercise.query.filter_by(workout_id=workout_id).all()
+    return [workout_exercise_schema.dump(we) for we in wes], 200
 
-
-@app.route(
-    '/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises',
-    methods=['GET']
-)
+@app.route('/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises', methods=['GET'])
 def get_workout_exercise(workout_id, exercise_id):
-    we = WorkoutExercise.query.filter_by(
-        workout_id=workout_id,
-        exercise_id=exercise_id
-    ).first()
-    
-    if we == None:
-        return {'error': f'No workout exercise found linking workout {workout_id} and exercise {exercise_id}'}, 404
-    
+    we = WorkoutExercise.query.filter_by(workout_id=workout_id, exercise_id=exercise_id).first()
+    if not we: return {'error': 'Not found'}, 404
     return workout_exercise_schema.dump(we), 200
 
-
-@app.route(
-    '/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises',
-    methods=['POST']
-)
+@app.route('/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises', methods=['POST'])
 def add_exercise_to_workout(workout_id, exercise_id):
-    # make sure both exist before linking them
-    if Workout.query.get(workout_id) == None:
-        return {'error': 'Workout not found with id ' + str(workout_id)}, 404
-    if Exercise.query.get(exercise_id) == None:
-        return {'error': 'Exercise not found with id ' + str(exercise_id)}, 404
-
-    data = request.get_json()
-    if data == None:
-        data = {}
-
-    # inject ids from url into the data dict
+    if not Workout.query.get(workout_id): return {'error': 'Workout not found'}, 404
+    if not Exercise.query.get(exercise_id): return {'error': 'Exercise not found'}, 404
+    data = request.get_json() or {}
     data['workout_id'] = workout_id
     data['exercise_id'] = exercise_id
+    new_we = WorkoutExercise(**workout_exercise_schema.load(data))
+    db.session.add(new_we)
+    db.session.commit()
+    return workout_exercise_schema.dump(new_we), 201
 
-    errors = workout_exercise_schema.validate(data)
-    if len(errors) > 0:
-        return {'errors': errors}, 400
-
-    try:
-        loaded_data = workout_exercise_schema.load(data)
-        new_we = WorkoutExercise(**loaded_data)
-        db.session.add(new_we)
-        db.session.commit()
-        return workout_exercise_schema.dump(new_we), 201
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to add exercise to workout: {str(e)}'}, 400
-
-
-@app.route(
-    '/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises',
-    methods=['PATCH']
-)
+@app.route('/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises', methods=['PATCH'])
 def update_workout_exercise(workout_id, exercise_id):
-    # find the workout exercise linking these two
-    we = WorkoutExercise.query.filter_by(
-        workout_id=workout_id,
-        exercise_id=exercise_id
-    ).first()
-    
-    if we == None:
-        return {'error': f'No workout exercise found linking workout {workout_id} and exercise {exercise_id}'}, 404
-    
+    we = WorkoutExercise.query.filter_by(workout_id=workout_id, exercise_id=exercise_id).first()
+    if not we: return {'error': 'Not found'}, 404
     data = request.get_json()
-    if data == None:
-        return {'error': 'No data provided'}, 400
-    
-    # validate only the fields being updated
-    errors = workout_exercise_schema.validate(data, partial=True)
-    if len(errors) > 0:
-        return {'errors': errors}, 400
-    
-    try:
-        # load with partial=True to allow partial updates
-        updated_data = workout_exercise_schema.load(data, partial=True)
-        for key, value in updated_data.items():
-            # skip workout_id and exercise_id since they can't be changed
-            if key not in ['workout_id', 'exercise_id']:
-                setattr(we, key, value)
-        db.session.commit()
-        return workout_exercise_schema.dump(we), 200
-    except Exception as e:
-        db.session.rollback()
-        return {'error': f'Failed to update workout exercise: {str(e)}'}, 400
-
+    if not data: return {'error': 'No data'}, 400
+    for k, v in workout_exercise_schema.load(data, partial=True).items():
+        if k not in ['workout_id', 'exercise_id']:
+            setattr(we, k, v)
+    db.session.commit()
+    return workout_exercise_schema.dump(we), 200
 
 if __name__ == '__main__':
     app.run(debug=True, port=5555)
