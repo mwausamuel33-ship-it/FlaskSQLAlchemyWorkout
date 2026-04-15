@@ -101,16 +101,7 @@ def create_exercise():
     db.session.commit()
     return exercise_schema.dump(new_e), 201
 
-@app.route('/exercises/<int:id>', methods=['PATCH'])
-def update_exercise(id):
-    e = Exercise.query.get(id)
-    if not e: return {'error': 'Not found'}, 404
-    data = request.get_json()
-    if not data: return {'error': 'No data'}, 400
-    for k, v in exercise_schema.load(data, partial=True).items():
-        setattr(e, k, v)
-    db.session.commit()
-    return exercise_schema.dump(e), 200
+
 
 @app.route('/exercises/<int:id>', methods=['DELETE'])
 def delete_exercise(id):
