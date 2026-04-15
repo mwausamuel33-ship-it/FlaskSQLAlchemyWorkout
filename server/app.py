@@ -61,7 +61,7 @@ def create_workout():
     new_w = Workout(**workout_schema.load(data))
     db.session.add(new_w)
     db.session.commit()
-    return workout_schema.dump(new_w), 201
+    return {'workout': workout_schema.dump(new_w)}, 201
 
 @app.route('/workouts/<int:id>', methods=['PATCH'])
 def update_workout(id):
@@ -136,7 +136,6 @@ def get_workout_exercise(workout_id, exercise_id):
 @app.route('/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises', methods=['POST'])
 def add_exercise_to_workout(workout_id, exercise_id):
     if not Workout.query.get(workout_id): return {'error': 'Workout not found'}, 404
-    if not Exercise.query.get(exercise_id): return {'error': 'Exercise not found'}, 404
     data = request.get_json() or {}
     data['workout_id'] = workout_id
     data['exercise_id'] = exercise_id

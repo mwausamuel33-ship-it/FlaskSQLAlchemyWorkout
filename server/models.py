@@ -33,18 +33,9 @@ class Exercise(db.Model):
         overlaps='exercises,workout_exercises'
     )
 
-    @validates('name')
-    def validate_name(self, key, value):
-        if value == None or len(value.strip()) == 0:
-            raise ValueError('Name cannot be empty')
-        return value.strip()
 
-    @validates('category')
-    def validate_category(self, key, value):
-        allowed = ['strength', 'cardio', 'flexibility', 'balance']
-        if value not in allowed:
-            raise ValueError(f'Category must be one of: {", ".join(allowed)}')
-        return value
+
+
 
 
 # Workout - a single workout session on a specific day
@@ -69,19 +60,9 @@ class Workout(db.Model):
         overlaps='exercises,workout_exercises'
     )
 
-    @validates('date')
-    def validate_date(self, key, value):
-        if value == None:
-            raise ValueError('Date is required')
-        return value
 
-    @validates('duration_minutes')
-    def validate_duration(self, key, value):
-        if value == None:
-            raise ValueError('Duration is required')
-        if value <= 0:
-            raise ValueError('Duration must be greater than 0')
-        return value
+
+
 
 
 # WorkoutExercise - join table between Workout and Exercise

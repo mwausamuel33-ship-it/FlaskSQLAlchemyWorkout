@@ -36,11 +36,7 @@ class WorkoutExerciseSchema(Schema):
 class ExerciseSchema(Schema):
     id = fields.Int(dump_only=True)
     name = fields.Str(required=True)
-    # validate.OneOf checks against a list of allowed values
-    category = fields.Str(
-        required=True,
-        validate=validate.OneOf(['strength', 'cardio', 'flexibility', 'balance'])
-    )
+    category = fields.Str(required=True)
     equipment_needed = fields.Bool(missing=False)  # defaults to False if not sent
     workout_exercises = fields.Nested(
         'WorkoutExerciseSchema', many=True, dump_only=True
