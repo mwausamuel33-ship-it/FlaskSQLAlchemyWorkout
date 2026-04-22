@@ -29,14 +29,33 @@ class WorkoutExerciseSchema(Schema):
         if found == None:
             raise ValidationError('No exercise found with that id')
 
+    def validate(self, data, **kwargs):
+        if not any(
+            data.get(field) is not None and data.get(field) > 0
+            for field in ['reps', 'sets', 'duration_seconds']
+        ):
+            raise ValidationError(
+                'At least one of reps, sets, or duration_seconds must be provided and positive'
+            )
+        return data
+
     class Meta:
         model = WorkoutExercise
 
 
 class ExerciseSchema(Schema):
     id = fields.Int(dump_only=True)
-    name = fields.Str(required=True)
-    category = fields.Str(required=True)
+    name = fields.Str(
+        required=True,
+        validate=validate.Length(min=2, max=255)
+    )
+    category = fields.Str(
+        required=True,
+        validate=validate.OneOf(
+            ['strength', 'cardio', 'flexibility', 'endurance', 'other'],
+            error='Invalid category'
+        )
+    )
     equipment_needed = fields.Bool(missing=False)  # defaults to False if not sent
     workout_exercises = fields.Nested(
         'WorkoutExerciseSchema', many=True, dump_only=True

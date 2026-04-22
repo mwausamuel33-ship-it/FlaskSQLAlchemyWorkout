@@ -84,7 +84,7 @@ def delete_workout(id):
 
 @app.route('/exercises', methods=['GET'])
 def get_exercises():
-    return Exercise.query.all(), 200
+    return exercises_schema.dump(Exercise.query.all()), 200
 
 @app.route('/exercises/<int:id>', methods=['GET'])
 def get_exercise(id):
@@ -109,7 +109,7 @@ def delete_exercise(id):
     if not e: return {'error': 'Not found'}, 404
     db.session.delete(e)
     db.session.commit()
-    return {'message': 'Deleted'}, 200
+    return {'message': 'Exercise deleted successfully'}, 200
 
 @app.route('/workouts/<int:workout_id>/exercises', methods=['GET'])
 def get_workout_exercises(workout_id):

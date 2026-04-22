@@ -25,6 +25,30 @@ class Exercise(db.Model):
         cascade='all, delete-orphan'
     )
 
+    workouts = db.relationship(
+        'Workout',
+        secondary='workout_exercises',
+        back_populates='exercises',
+        overlaps='exercises,workout_exercises'
+    )
+
+    @validates('name')
+    def validate_name(self, key, value):
+        if not value or not value.strip():
+            raise ValueError('Name is required')
+        if len(value) < 2:
+            raise ValueError('Name must be at least 2 characters')
+        return value.strip()
+
+    @validates('category')
+    def validate_category(self, key, value):
+        if not value or not value.strip():
+            raise ValueError('Category is required')
+        allowed = ['strength', 'cardio', 'flexibility', 'endurance', 'other']
+        if value.lower() not in allowed:
+            raise ValueError(f'Category must be one of: {", ".join(allowed)}')
+        return value.strip().lower()
+
     # goes through the join table - i had to look up what overlaps does
     workouts = db.relationship(
         'Workout',
@@ -59,6 +83,12 @@ class Workout(db.Model):
         back_populates='workouts',
         overlaps='exercises,workout_exercises'
     )
+
+    @validates('duration_minutes')
+    def validate_duration_minutes(self, key, value):
+        if value is None or value <= 0:
+            raise ValueError('Duration must be a positive number')
+        return value
 
 
 
